@@ -53,17 +53,56 @@ Environment variables (all in `.env`):
 
 Everything the model marked low-confidence, or that fails a deterministic check, is flagged in the UI with a reason. The correction screen is the safety net — it's designed to be fast to scan and fast to fix, because the whole premise of the product depends on a human catching what the model misses.
 
+## Decisions I made (and why)
+
+**What counts as a line item?**
+- Only things actually purchased. Tax, tip, discount, subtotal are their own fields, not line items.
+- Keeps the math check honest — items + tax − discount should equal the total. Mixing tax into the item list breaks that.
+
+**Malformed LLM output?**
+- One retry, with the validation error fed back into the prompt.
+- Still broken → keep whatever fields did parse, leave the rest blank, and let the user fix it in the UI. No dead-end error screen — the correction flow *is* the fallback.
+
+**Low-confidence extractions?**
+- Don't trust the model's self-reported confidence alone. Check the math too: does total = items + tax, is the date real, anything negative that shouldn't be.
+- Anything that fails either check gets flagged. If the photo itself is too blurry to trust, say so upfront and let the user decide to continue or reupload, instead of quietly guessing.
+
+**How does the user know what to correct?**
+- Flagged fields get an amber highlight with a tooltip saying why (low confidence / doesn't match total / not found).
+- A banner shows up when the numbers don't reconcile, with the actual gap ("items add up to $512, total says $572").
+- I also tried highlighting the spot on the *image* where a field was read from. Had to abandon it has the accuracy will take more than 4hrs to solve and also increases token usage.
+
+**Which model, and why?**
+- Went with Gemini's Flash tier. Pro wasn't available on new API keys at the time, so I benchmarked Flash generations directly against my sample receipts — `gemini-3.5-flash` came out faster *and* more accurate than `2.5-flash`, so that's the default now.
+- Flash over Pro generally: you give up a bit of accuracy for a lot less cost and latency, and that's fine here specifically because the correction flow exists to catch what the model misses. That tradeoff doesn't work without a good correction UI, but with one, it's an easy call.
+
+---
+
 ## The five questions
 
-**What did you build?** A Next.js app (API routes as the backend, React and shadcn/ui for the frontend) that uploads a receipt image or PDF, sends it to Gemini for combined classification and structured extraction, validates and deterministically checks the result, persists it to SQLite, and presents a two-pane correction screen with inline editing, live arithmetic reconciliation, custom fields, and a reupload-and-merge flow for replacing a bad photo with a better one without losing edits already made.
+**What did you build?**
+A Next.js app (API routes as backend, React + shadcn/ui frontend) that takes a receipt photo or PDF, sends it to Gemini for classification + structured extraction in one call, runs it through validation and arithmetic sanity checks, saves it to SQLite, and shows a two-pane review screen for corrections — inline editing, live reconciliation, custom fields, and a reupload flow that merges a better photo in without losing edits you already made.
 
-**Biggest tradeoffs:** (1) One combined classify+extract Gemini call instead of two separate calls — better latency and cost, at the price of coupling the two failure modes together (a bad extraction schema means re-running the classification too). (2) I initially built image highlight-sync — clicking a field would draw a box on the receipt image showing where the model read it from, per the original spec. Testing it against the sample receipts showed the model's spatial grounding for line items specifically was not reliable enough to trust as UI: boxes would land on the wrong row of a tightly-packed item list. I tried two engineering fixes (asking for one bbox around the whole item list instead of per-row boxes, then deriving exact row boundaries from real pixel analysis instead of assuming equal row heights), and while both measurably improved things, I ultimately pulled the feature rather than ship something that looks precise but occasionally isn't — a flagged-field list conveys the same "trust but verify" information without a visual claim that could be wrong. (3) Model choice — Gemini 2.5 Pro isn't available on new API keys at the time of writing, so I benchmarked Flash generations directly against the sample receipts and found `gemini-3.5-flash` noticeably faster and more accurate than `gemini-2.5-flash`, which is why it's the default. The broader point holds regardless of tier: accuracy traded for cost/latency is recoverable specifically because the correction flow exists — the human catches marginal errors, and that's the whole premise of this product, not an afterthought.
+**Biggest tradeoffs:**
+- One combined classify + extract call instead of two. Cheaper and faster, but it couples the failure modes — a bad extraction means re-running the classification too.
+- Cut image highlight-sync. Tried it, tried fixing it twice (one box per item list instead of per row, then deriving row positions from actual pixel analysis), it got better but not trustworthy enough. A flagged-field list gives the same "check this" signal without a visual that could point at the wrong line.
+- Model tier over model brand. The real tradeoff wasn't "which company" so much as "how much accuracy am I willing to trade for speed and cost" — and that trade only makes sense because there's a human correcting mistakes downstream.
 
-**Where you used an LLM:** Claude Code scaffolded the app and UI from a detailed spec I wrote up front (data model, pipeline stages, merge precedence rules, correction-flow behavior). I designed the extraction schema, the deterministic-check tolerances, the field/line-item merge precedence for the reupload flow, and the overall validation/salvage strategy. Prompt iteration and the decision to drop image highlight-sync were both driven by testing against the real sample receipts in `./samples/`, including a deliberately blurry one and one with overlapping/duplicated text, to check that quality detection and the arithmetic check actually catch what they're supposed to.
+**Where did you use an LLM?**
+Claude Code built the app from a spec I wrote upfront — data model, pipeline stages, merge rules, correction-flow behavior. I made the actual decisions: the extraction schema, the arithmetic tolerances, the merge precedence for reuploads, the validation/fallback strategy. Prompt tuning and the call to drop highlight-sync both came from testing against real sample receipts, including a deliberately blurry one and one with duplicated/overlapping text. **Also used Shadcn MCP hook for real inspired UI elements and playwright CLI so Claude can access the browser to see the UI errors and fix instead of relying on DOM only.**
 
-**Another week:** In priority order — (1) calibrate confidence scoring against a small labeled receipt set, since right now "high/medium/low" is the model's own self-assessment with no ground truth to check it against; (2) revisit image highlight-sync backed by a dedicated OCR pass, if the value clearly justifies that added complexity; (3) multi-currency handling within a single receipt and itemized tax (currently one currency and one tax figure per receipt); (4) batch upload, since right now it's one receipt at a time; (5) category tagging feeding a spend dashboard, which is the actual use case this feeds into; (6) mobile capture UX with client-side edge detection/cropping, since a phone camera is the realistic capture device for this product, not a desktop drag-and-drop.
+**What would you do with another week?**
+1. Calibrate confidence against a small labeled set — right now "high/medium/low" is just the model grading itself, no ground truth behind it.
+2. Revisit image highlighting, backed by **real OCR instead** of the model's own guess, if it's worth the added complexity.
+3. Multi-currency and itemized tax per receipt (right now it's one currency, one tax figure).
+4. Batch upload instead of one at a time.
+5. Category tagging, since that's what actually feeds a spend dashboard.
+6. Mobile capture with edge detection/cropping — a phone camera is the real capture device here, not a desktop drag-and-drop.
 
-**Push back on:** the spec's field list — merchant, date, line items, total — is worth questioning for a personal-finance product. Payment method and category are arguably more valuable than line items for most receipts: spend analytics needs "$1,200, dining, credit card" far more than it needs every dish name, and line-item extraction is simultaneously the least reliable field (per this build's own flagging) and the most correction-heavy for the user. I'd ask the PM whether line items are needed for v1 at all, or only for specific categories like groceries, and whether the product is optimizing for expense-logging speed or itemized detail — those pull the UI in different directions. Separately: the spec says "photo" but doesn't address multi-page receipts or emailed PDF invoices, which are increasingly the common case for anything above a convenience-store purchase.
+**What would you push back on?**
+The field list itself — merchant, date, line items, total. For a personal-finance product, payment method and category probably matter more than line items for most receipts: "$1,200, dining, credit card" is more useful than every dish name, and line items are both the least reliable field to extract and the most correction-heavy for the user. I'd ask whether v1 needs itemization at all, or only for categories where it earns its keep, like groceries.
+
+**Feature to be noted**: When you re-upload a photo it stiches the previous photo info with the new photo info and enters the best of two accurate details found.
 
 ## Known limitations
 
