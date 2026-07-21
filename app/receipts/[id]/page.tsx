@@ -105,14 +105,14 @@ export default function ReceiptDetailPage() {
 
   if (notFound) {
     return (
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-dvh flex-col">
         <NavHeader />
         <main className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
           <h1 className="text-lg font-semibold">Receipt not found</h1>
           <p className="text-sm text-muted-foreground">
             This receipt may have been deleted, or the link is incorrect.
           </p>
-          <Button render={<Link href="/receipts">Back to all receipts</Link>} />
+          <Button nativeButton={false} render={<Link href="/receipts">Back to all receipts</Link>} />
         </main>
       </div>
     );
@@ -120,7 +120,7 @@ export default function ReceiptDetailPage() {
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-dvh flex-col">
         <NavHeader />
         <main className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
           <h1 className="text-lg font-semibold">Couldn&apos;t load this receipt</h1>
@@ -132,7 +132,7 @@ export default function ReceiptDetailPage() {
 
   if (!receipt || !draft) {
     return (
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-dvh flex-col">
         <NavHeader />
         <main className="mx-auto grid max-w-5xl flex-1 grid-cols-2 gap-6 px-6 py-8">
           <Skeleton className="h-[600px] w-full" />
@@ -201,10 +201,10 @@ export default function ReceiptDetailPage() {
   const showQualityWarning = receipt.imageQuality === "poor_but_readable" || receipt.imageQuality === "unreadable";
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-dvh flex-col">
       <NavHeader />
-      <div className="flex flex-1 overflow-hidden">
-        <div className="w-1/2 min-w-0 border-r">
+      <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
+        <div className="h-56 shrink-0 border-b sm:h-72 md:h-auto md:w-1/2 md:min-w-0 md:shrink md:border-r md:border-b-0">
           <ReceiptImagePane
             receiptId={id}
             imageSource={imageSource}
@@ -213,10 +213,10 @@ export default function ReceiptDetailPage() {
           />
         </div>
 
-        <div className="flex w-1/2 min-w-0 flex-col overflow-hidden">
-          <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1 space-y-3">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:w-1/2 md:min-w-0">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
+              <div className="min-w-0 w-full flex-1 space-y-3 sm:w-auto">
                 <EditableField
                   label="Merchant"
                   value={draft.merchant}
@@ -260,7 +260,7 @@ export default function ReceiptDetailPage() {
               <Alert className="border-amber-500/50 text-amber-800 dark:text-amber-300 [&>svg]:text-amber-600">
                 <AlertTriangle className="size-4" />
                 <AlertTitle>Photo quality was poor</AlertTitle>
-                <AlertDescription className="flex items-center justify-between gap-3 text-amber-800/90 dark:text-amber-300/90">
+                <AlertDescription className="flex flex-col items-start gap-2 text-amber-800/90 sm:flex-row sm:items-center sm:justify-between dark:text-amber-300/90">
                   <span>Double-check the flagged fields against the image.</span>
                   <Button size="sm" variant="outline" onClick={() => setReuploadOpen(true)}>
                     Reupload

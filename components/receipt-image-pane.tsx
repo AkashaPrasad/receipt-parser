@@ -133,7 +133,7 @@ export function ReceiptImagePane({ receiptId, imageSource, hasSecondary, onImage
       {/* Fixed in place — no drag-to-pan. The image is sized to its real
           aspect ratio so the whole receipt is visible by default; zoom
           scales it in place and the container scrolls natively if needed. */}
-      <div ref={viewportRef} className="relative flex-1 overflow-auto">
+      <div ref={viewportRef} className="relative min-h-0 flex-1 overflow-auto">
         <div className="flex min-h-full min-w-full items-center justify-center p-6">
           <div
             className="relative shrink-0"

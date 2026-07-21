@@ -66,7 +66,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/20">
+    <div className="flex min-h-dvh flex-col bg-muted/20">
       <NavHeader />
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
         {rejection ? (

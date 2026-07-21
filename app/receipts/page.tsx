@@ -47,21 +47,22 @@ export default function ReceiptsPage() {
   }, [receipts, search, sortKey]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/20">
+    <div className="flex min-h-dvh flex-col bg-muted/20">
       <NavHeader />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
-        <div className="mb-6 flex items-center justify-between gap-4">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-10">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-lg font-semibold">All receipts</h1>
           <div className="flex items-center gap-2">
             <Input
               placeholder="Search merchant…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-56"
+              className="w-full sm:w-56"
             />
             <Button
               variant="outline"
               size="sm"
+              className="shrink-0"
               onClick={() => setSortKey((k) => (k === "date" ? "total" : "date"))}
             >
               Sort: {sortKey === "date" ? "Date" : "Total"}
@@ -69,7 +70,7 @@ export default function ReceiptsPage() {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-background">
+        <div className="overflow-x-auto rounded-lg border bg-background">
           <Table>
             <TableHeader>
               <TableRow>
@@ -77,10 +78,10 @@ export default function ReceiptsPage() {
                 <TableHead>Merchant</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Total</TableHead>
-                <TableHead>Items</TableHead>
+                <TableHead className="hidden sm:table-cell">Items</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Flags</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead className="hidden sm:table-cell">Flags</TableHead>
+                <TableHead className="hidden md:table-cell">Created</TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
@@ -129,16 +130,18 @@ export default function ReceiptsPage() {
                         {r.merchant ?? "Unknown merchant"}
                       </Link>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(r.purchaseDate)}</TableCell>
-                    <TableCell className="tabular-nums">{formatCurrency(r.total, r.currency)}</TableCell>
-                    <TableCell className="text-muted-foreground">{r.itemCount}</TableCell>
+                    <TableCell className="text-muted-foreground whitespace-nowrap">{formatDate(r.purchaseDate)}</TableCell>
+                    <TableCell className="tabular-nums whitespace-nowrap">{formatCurrency(r.total, r.currency)}</TableCell>
+                    <TableCell className="hidden text-muted-foreground sm:table-cell">{r.itemCount}</TableCell>
                     <TableCell>
                       <StatusBadge status={r.status} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <FlagBadge count={r.flagCount} />
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(r.createdAt)}</TableCell>
+                    <TableCell className="hidden text-muted-foreground whitespace-nowrap md:table-cell">
+                      {formatDate(r.createdAt)}
+                    </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger
